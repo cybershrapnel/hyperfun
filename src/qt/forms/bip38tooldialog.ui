@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>SignVerifyMessageDialog</class>
- <widget class="QDialog" name="SignVerifyMessageDialog">
+ <class>Bip38ToolDialog</class>
+ <widget class="QDialog" name="Bip38ToolDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>700</width>
-    <height>380</height>
+    <height>334</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Signatures - Sign / Verify a Message</string>
+   <string>BIP 38 Tool</string>
   </property>
   <property name="modal">
    <bool>true</bool>
@@ -22,15 +22,15 @@
      <property name="currentIndex">
       <number>1</number>
      </property>
-     <widget class="QWidget" name="tabSignMessage">
+     <widget class="QWidget" name="tabBip38Encrypt">
       <attribute name="title">
-       <string>&amp;Sign Message</string>
+       <string>&amp;BIP 38 Encrypt</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_SM">
        <item>
-        <widget class="QLabel" name="infoLabel_SM">
+        <widget class="QLabel" name="infoLabel_ENC">
          <property name="text">
-          <string>You can sign messages with your addresses to prove you own them. Be careful not to sign anything vague, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</string>
+          <string>Enter a HYP Address that you would like to encrypt using BIP 38. Enter a passphrase in the middle box. Press encrypt to compute the encrypted private key.</string>
          </property>
          <property name="textFormat">
           <enum>Qt::PlainText</enum>
@@ -41,24 +41,28 @@
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_1_SM">
+        <layout class="QHBoxLayout" name="horizontalLayout_1_ENC">
          <property name="spacing">
           <number>0</number>
          </property>
          <item>
-          <widget class="QValidatedLineEdit" name="addressIn_SM">
-           <property name="toolTip">
-            <string>The address to sign the message with (e.g. 4Zo1ga6xuKuQ7JV7M9rGDoxdbYwV5zgQJ5)</string>
-           </property>
-           <property name="maxLength">
-            <number>34</number>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>Address:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="addressBookButton_SM">
+          <widget class="QValidatedLineEdit" name="addressIn_ENC">
            <property name="toolTip">
-            <string>Choose an address from the address book</string>
+            <string>The HYP address to encrypt</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="addressBookButton_ENC">
+           <property name="toolTip">
+            <string>Choose previously used address</string>
            </property>
            <property name="text">
             <string/>
@@ -76,7 +80,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pasteButton_SM">
+          <widget class="QPushButton" name="pasteButton_ENC">
            <property name="toolTip">
             <string>Paste address from clipboard</string>
            </property>
@@ -98,19 +102,40 @@
         </layout>
        </item>
        <item>
-        <widget class="QPlainTextEdit" name="messageIn_SM">
-         <property name="toolTip">
-          <string>Enter the message you want to sign here</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <item>
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Passphrase: </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="passphraseIn_ENC">
+           <property name="echoMode">
+            <enum>QLineEdit::Password</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2_SM">
+        <layout class="QHBoxLayout" name="horizontalLayout_2_ENC">
          <property name="spacing">
           <number>0</number>
          </property>
          <item>
-          <widget class="QLineEdit" name="signatureOut_SM">
+          <widget class="QLabel" name="encryptedKeyLabel_ENC">
+           <property name="text">
+            <string>Encrypted Key:</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="encryptedKeyOut_ENC">
            <property name="font">
             <font>
              <italic>true</italic>
@@ -122,7 +147,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="copySignatureButton_SM">
+          <widget class="QPushButton" name="copyKeyButton_ENC">
            <property name="toolTip">
             <string>Copy the current signature to the system clipboard</string>
            </property>
@@ -141,14 +166,14 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3_SM">
+        <layout class="QHBoxLayout" name="horizontalLayout_3_ENC">
          <item>
-          <widget class="QPushButton" name="signMessageButton_SM">
+          <widget class="QPushButton" name="encryptKeyButton_ENC">
            <property name="toolTip">
-            <string>Sign the message to prove you own this HyperStake address</string>
+            <string>Sign the message to prove you own this HYP address</string>
            </property>
            <property name="text">
-            <string>&amp;Sign Message</string>
+            <string>Encrypt &amp;Key</string>
            </property>
            <property name="icon">
             <iconset resource="../bitcoin.qrc">
@@ -160,7 +185,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="clearButton_SM">
+          <widget class="QPushButton" name="clearButton_ENC">
            <property name="toolTip">
             <string>Reset all sign message fields</string>
            </property>
@@ -177,7 +202,7 @@
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_1_SM">
+          <spacer name="horizontalSpacer_1_ENC">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -190,7 +215,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="statusLabel_SM">
+          <widget class="QLabel" name="statusLabel_ENC">
            <property name="font">
             <font>
              <weight>75</weight>
@@ -206,7 +231,7 @@
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_2_SM">
+          <spacer name="horizontalSpacer_2_ENC">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -222,15 +247,15 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="tabVerifyMessage">
+     <widget class="QWidget" name="tabBip38Decrypt">
       <attribute name="title">
-       <string>&amp;Verify Message</string>
+       <string>&amp;BIP 38 Decrypt</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_VM">
        <item>
-        <widget class="QLabel" name="infoLabel_VM">
+        <widget class="QLabel" name="infoLabel_DEC">
          <property name="text">
-          <string>Enter the signing address, message (ensure you copy line breaks, spaces, tabs, etc. exactly) and signature below to verify the message. Be careful not to read more into the signature than what is in the signed message itself, to avoid being tricked by a man-in-the-middle attack.</string>
+          <string>Enter the BIP 38 encrypted private key. Enter the passphrase in the middle box. Click Decrypt Key to compute the private key. After the key is decrypted, clicking 'Import Address' will add this private key to the wallet.</string>
          </property>
          <property name="textFormat">
           <enum>Qt::PlainText</enum>
@@ -244,57 +269,50 @@
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_1_VM">
-         <property name="spacing">
-          <number>0</number>
-         </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QValidatedLineEdit" name="addressIn_VM">
-           <property name="toolTip">
-            <string>The address the message was signed with (e.g. 4Zo1ga6xuKuQ7JV7M9rGDoxdbYwV5zgQJ5)</string>
-           </property>
-           <property name="maxLength">
-            <number>34</number>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Encrypted Key:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="addressBookButton_VM">
+          <widget class="QValidatedLineEdit" name="encryptedKeyIn_DEC">
            <property name="toolTip">
-            <string>Choose an address from the address book</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="icon">
-            <iconset resource="../bitcoin.qrc">
-             <normaloff>:/icons/address-book</normaloff>:/icons/address-book</iconset>
-           </property>
-           <property name="shortcut">
-            <string>Alt+A</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
+            <string>The BIP38 Encrypted Key</string>
            </property>
           </widget>
          </item>
         </layout>
        </item>
        <item>
-        <widget class="QPlainTextEdit" name="messageIn_VM"/>
-       </item>
-       <item>
-        <widget class="QValidatedLineEdit" name="signatureIn_VM"/>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2_VM">
+        <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QPushButton" name="verifyMessageButton_VM">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Passphrase: </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="passphraseIn_DEC">
+           <property name="echoMode">
+            <enum>QLineEdit::Password</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2_DEC">
+         <item>
+          <widget class="QPushButton" name="decryptKeyButton_DEC">
            <property name="toolTip">
-            <string>Verify the message to ensure it was signed with the specified HyperStake address</string>
+            <string>Decrypt the encrypted key</string>
            </property>
            <property name="text">
-            <string>&amp;Verify Message</string>
+            <string>Decrypt &amp;Key</string>
            </property>
            <property name="icon">
             <iconset resource="../bitcoin.qrc">
@@ -306,7 +324,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="clearButton_VM">
+          <widget class="QPushButton" name="clearButton_DEC">
            <property name="toolTip">
             <string>Reset all verify message fields</string>
            </property>
@@ -323,7 +341,7 @@
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_1_VM">
+          <spacer name="horizontalSpacer_1_DEC">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -336,7 +354,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="statusLabel_VM">
+          <widget class="QLabel" name="statusLabel_DEC">
            <property name="font">
             <font>
              <weight>75</weight>
@@ -352,7 +370,7 @@
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_2_VM">
+          <spacer name="horizontalSpacer_2_DEC">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -363,6 +381,41 @@
             </size>
            </property>
           </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Decrypted Key:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QValidatedLineEdit" name="decryptedKeyOut_DEC"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <item>
+          <widget class="QPushButton" name="importAddressButton_DEC">
+           <property name="text">
+            <string>Import Address</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Address:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="addressOut_DEC"/>
          </item>
         </layout>
        </item>
