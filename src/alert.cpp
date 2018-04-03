@@ -2,9 +2,6 @@
 // Alert system
 //
 
-#include <algorithm>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/foreach.hpp>
 #include <map>
 
@@ -13,14 +10,20 @@
 #include "net.h"
 #include "sync.h"
 #include "ui_interface.h"
+#include "clientversion.h"
 
 using namespace std;
 
 map<uint256, CAlert> mapAlerts;
 CCriticalSection cs_mapAlerts;
 
-static const char* pszMainKey = "04f3be78bf1988200c604bd8c81ae43a617bf95f619c8a6dfd3938e7d9b1f6f45435802146805bcf3430ddea2adc9aa6825df2d122c834c28876553a44467e499d";
-static const char* pszTestKey = "042ee220a35c167a7e67e8e19619b7f085b7eea3b9cfe6f528650369a60689368d0463d74982472559a1380260cd7d0ee00ce671424e85642c52e6284deea9b704";
+static const char* pszMainKey = "02d5e843832a712d6cbb7701ff84e13faa91cd11ccd9fe7aa9397aff3ad11900b6";
+
+// TestNet alerts pubKey
+static const char* pszTestKey = "";
+
+// TestNet alerts private key
+// "3082011302010104202a23227c8e1ae38f23b8307cd12ed9ca4ef1951a09abb3ce06e2fda19ea60be4a081a53081a2020101302c06072a8648ce3d0101022100fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f300604010004010704410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8022100fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141020101a14403420004ecb36d13861c56f7ad14529bc54dc0b5d5d954586698c2fc244045c617e44ed07994808643f67a71e3c1003e8506fef238cfb98bf9468c1f7b9a684c5b536f55"
 
 void CUnsignedAlert::SetNull()
 {
@@ -51,8 +54,8 @@ std::string CUnsignedAlert::ToString() const
     return strprintf(
         "CAlert(\n"
         "    nVersion     = %d\n"
-        "    nRelayUntil  = %"PRI64d"\n"
-        "    nExpiration  = %"PRI64d"\n"
+        "    nRelayUntil  = %lld\n"
+        "    nExpiration  = %lld\n"
         "    nID          = %d\n"
         "    nCancel      = %d\n"
         "    setCancel    = %s\n"
@@ -101,7 +104,9 @@ uint256 CAlert::GetHash() const
 
 bool CAlert::IsInEffect() const
 {
-    return (GetAdjustedTime() < nExpiration);
+    if(nID < 200)
+		return false;
+	return (GetAdjustedTime() < nExpiration);
 }
 
 bool CAlert::Cancels(const CAlert& alert) const
@@ -144,7 +149,9 @@ bool CAlert::RelayTo(CNode* pnode) const
 
 bool CAlert::CheckSignature() const
 {
-    CPubKey key(ParseHex(fTestNet ? pszTestKey : pszMainKey));
+    CKey key;
+    if (!key.SetPubKey(ParseHex(fTestNet ? pszTestKey : pszMainKey)))
+        return error("CAlert::CheckSignature() : SetPubKey failed");
     if (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig))
         return error("CAlert::CheckSignature() : verify signature failed");
 
@@ -166,12 +173,20 @@ CAlert CAlert::getAlertByHash(const uint256 &hash)
     return retval;
 }
 
-bool CAlert::ProcessAlert(bool fThread)
+bool CAlert::ProcessAlert()
 {
     if (!CheckSignature())
-        return false;
+	{
+		printf("***ALERT CHECKSIGNATURE FAILED *** \n");
+		return false;
+	}
+        
     if (!IsInEffect())
-        return false;
+	{
+		printf("*** ALERT NOT IN EFFECT *** \n");
+		return false;
+	}
+        
 
     // alert.nID=max is reserved for if the alert key is
     // compromised. It must have a pre-defined message,
@@ -230,27 +245,9 @@ bool CAlert::ProcessAlert(bool fThread)
 
         // Add to mapAlerts
         mapAlerts.insert(make_pair(GetHash(), *this));
-        // Notify UI and -alertnotify if it applies to me
+        // Notify UI if it applies to me
         if(AppliesToMe())
-        {
             uiInterface.NotifyAlertChanged(GetHash(), CT_NEW);
-            std::string strCmd = GetArg("-alertnotify", "");
-            if (!strCmd.empty())
-            {
-                // Alert text should be plain ascii coming from a trusted source, but to
-                // be safe we first strip anything not in safeChars, then add single quotes around
-                // the whole string before passing it to the shell:
-                std::string singleQuote("'");
-                std::string safeStatus = SanitizeString(strStatusBar);
-                safeStatus = singleQuote+safeStatus+singleQuote;
-                boost::replace_all(strCmd, "%s", safeStatus);
-
-                if (fThread)
-                    boost::thread t(runCommand, strCmd); // thread runs free
-                else
-                    runCommand(strCmd);
-            }
-        }
     }
 
     printf("accepted alert %d, AppliesToMe()=%d\n", nID, AppliesToMe());
