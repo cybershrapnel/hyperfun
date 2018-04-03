@@ -1,7 +1,3 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #ifndef BITCOINUNITS_H
 #define BITCOINUNITS_H
 
@@ -13,8 +9,6 @@
 */
 class BitcoinUnits: public QAbstractListModel
 {
-    Q_OBJECT
-
 public:
     explicit BitcoinUnits(QObject *parent);
 
@@ -48,6 +42,8 @@ public:
     static int decimals(int unit);
     //! Format as string
     static QString format(int unit, qint64 amount, bool plussign=false);
+	//! Format as string
+    static QString formatAge(int unit, qint64 amount, bool plussign=false);
     //! Format as string (with unit)
     static QString formatWithUnit(int unit, qint64 amount, bool plussign=false);
     //! Parse string to coin amount
@@ -64,7 +60,6 @@ public:
     int rowCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
     ///@}
-
 private:
     QList<BitcoinUnits::Unit> unitlist;
 };

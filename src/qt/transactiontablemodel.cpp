@@ -1,9 +1,4 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "transactiontablemodel.h"
-
 #include "guiutil.h"
 #include "transactionrecord.h"
 #include "guiconstants.h"
@@ -16,11 +11,15 @@
 #include "wallet.h"
 #include "ui_interface.h"
 
+#include <QLocale>
 #include <QList>
 #include <QColor>
 #include <QTimer>
 #include <QIcon>
 #include <QDateTime>
+#include <QtAlgorithms>
+
+#include <algorithm>
 
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {
@@ -226,13 +225,13 @@ TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel *paren
         priv(new TransactionTablePriv(wallet, this)),
         cachedNumBlocks(0)
 {
-    columns << QString() << tr("Date") << tr("Type") << tr("Address") << tr("Amount");
+    columns << QString() << tr("Date") << tr("Type") << tr("Address/Label") << tr("Amount");
 
     priv->refreshWallet();
 
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(updateConfirmations()));
-    timer->start(MODEL_UPDATE_DELAY);
+    timer->start(TXTABLE_UPDATE_DELAY);
 
     connect(walletModel->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 }
@@ -279,11 +278,13 @@ int TransactionTableModel::columnCount(const QModelIndex &parent) const
 QString TransactionTableModel::formatTxStatus(const TransactionRecord *wtx) const
 {
     QString status;
+    float rate, days;
+    CWalletTx tx, ptx;
 
     switch(wtx->status.status)
     {
     case TransactionStatus::OpenUntilBlock:
-        status = tr("Open for %n more block(s)","",wtx->status.open_for);
+        status = tr("Open for %n block(s)","",wtx->status.open_for);
         break;
     case TransactionStatus::OpenUntilDate:
         status = tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx->status.open_for));
@@ -298,7 +299,7 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord *wtx) cons
         status = tr("Confirmed (%1 confirmations)").arg(wtx->status.depth);
         break;
     }
-    if(wtx->type == TransactionRecord::Generated)
+    if(wtx->type == TransactionRecord::Generated  || wtx->type == TransactionRecord::StakeMint)
     {
         switch(wtx->status.maturity)
         {
@@ -306,6 +307,25 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord *wtx) cons
             status += "\n" + tr("Mined balance will be available when it matures in %n more block(s)", "", wtx->status.matures_in);
             break;
         case TransactionStatus::Mature:
+            if (wallet->GetTransaction(wtx->hash, tx)) {
+              if (tx.vin.size() == 1) {
+                rate = 100.0f * (wtx->credit + wtx->debit) / -wtx->debit;
+                if (wallet->GetTransaction(tx.vin[0].prevout.hash, ptx)) {
+                  days = (tx.nTime - ptx.nTime) / 86400.0f;
+                  status += "\n" + tr("%1% staked in %2 days").arg(rate).arg(days);
+                  if (wtx->credit + wtx->debit == 1000 * COIN) {
+                    uint64_t capped = -wtx->debit * 7.5f * days / 365.f - 1000 * COIN;
+                    status += "\n" + tr("About %1 HYP capped").arg(capped / (float)COIN);
+					float unCappedStake = (capped / (float)COIN) + 1000;
+					status += "\n" + tr("Uncapped Stake: %1").arg((unCappedStake));
+					//status += "\n" +tr("Weight: %1").arg(unCappedStake * (days - (8/24)));
+                  }
+					float nWeight = (-wtx->debit)/(float)COIN * (std::min(days, (float)(30 - (8/24))) - 8/24);
+					status += "\n" + tr("Original UTXO: %1").arg((float)(-wtx->debit)/COIN);
+					status += "\n" + tr("Weight: %1").arg(nWeight);
+                }
+              }
+            }
             break;
         case TransactionStatus::MaturesWarning:
             status += "\n" + tr("This block was not received by any other nodes and will probably not be accepted!");
@@ -362,6 +382,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Sent to");
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
+    case TransactionRecord::StakeMint:
+		return tr("Minted");
     case TransactionRecord::Generated:
         return tr("Mined");
     default:
@@ -374,7 +396,11 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     switch(wtx->type)
     {
     case TransactionRecord::Generated:
-        return QIcon(":/icons/tx_mined");
+    case TransactionRecord::StakeMint:
+		{
+			QString str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
+			return QIcon(":/icons/tx_mined");
+		}
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvFromOther:
         return QIcon(":/icons/tx_input");
@@ -400,6 +426,9 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
     case TransactionRecord::SendToSelf:
+		return lookupAddress(wtx->address, tooltip);
+	case TransactionRecord::StakeMint:
+		return lookupAddress(wtx->address, tooltip);
     default:
         return tr("(n/a)");
     }
@@ -441,7 +470,7 @@ QString TransactionTableModel::formatTxAmount(const TransactionRecord *wtx, bool
 
 QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx) const
 {
-    if(wtx->type == TransactionRecord::Generated)
+    if(wtx->type == TransactionRecord::Generated || wtx->type == TransactionRecord::StakeMint)
     {
         switch(wtx->status.maturity)
         {
@@ -523,6 +552,8 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
             return formatTxToAddress(rec, false);
         case Amount:
             return formatTxAmount(rec);
+		case Depth:
+			return QString::number(rec->status.depth);
         }
         break;
     case Qt::EditRole:
@@ -539,6 +570,8 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
             return formatTxToAddress(rec, true);
         case Amount:
             return rec->credit + rec->debit;
+		case Depth:
+			return rec->status.depth;
         }
         break;
     case Qt::ToolTipRole:
@@ -576,7 +609,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         return QString::fromStdString(rec->getTxID());
     case ConfirmedRole:
         // Return True if transaction counts for balance
-        return rec->status.confirmed && !(rec->type == TransactionRecord::Generated &&
+        return rec->status.confirmed && !((rec->type == TransactionRecord::Generated || rec->type == TransactionRecord::StakeMint) &&
                                           rec->status.maturity != TransactionStatus::Mature);
     case FormattedAmountRole:
         return formatTxAmount(rec, false);

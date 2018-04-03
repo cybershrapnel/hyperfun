@@ -1,18 +1,14 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #ifndef TRANSACTIONFILTERPROXY_H
 #define TRANSACTIONFILTERPROXY_H
 
 #include <QSortFilterProxyModel>
 #include <QDateTime>
+#include <inttypes.h>
 
 /** Filter the transaction list according to pre-specified rules. */
 class TransactionFilterProxy : public QSortFilterProxyModel
 {
     Q_OBJECT
-
 public:
     explicit TransactionFilterProxy(QObject *parent = 0);
 
@@ -38,6 +34,8 @@ public:
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
 
+    int64_t getTotalAmount() const { return totalAmount; }
+
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
 
@@ -48,6 +46,12 @@ private:
     quint32 typeFilter;
     qint64 minAmount;
     int limitRows;
+    mutable int64_t totalAmount;
+
+signals:
+
+public slots:
+
 };
 
 #endif // TRANSACTIONFILTERPROXY_H

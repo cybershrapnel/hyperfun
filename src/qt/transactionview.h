@@ -1,7 +1,3 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #ifndef TRANSACTIONVIEW_H
 #define TRANSACTIONVIEW_H
 
@@ -18,6 +14,7 @@ class QModelIndex;
 class QMenu;
 class QFrame;
 class QDateTimeEdit;
+class QLabel;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -26,7 +23,6 @@ QT_END_NAMESPACE
 class TransactionView : public QWidget
 {
     Q_OBJECT
-
 public:
     explicit TransactionView(QWidget *parent = 0);
 
@@ -53,14 +49,22 @@ private:
     QComboBox *typeWidget;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
+    QLabel *totalAmountWidgetLabel;
+    QLabel *totalAmountWidget;
 
     QMenu *contextMenu;
 
     QFrame *dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
+    QLabel *to;
+    QLabel *range;
 
     QWidget *createDateRangeWidget();
+
+private:
+    void updateTotalAmount();
+    void enableDateRangeWidget(bool enable);
 
 private slots:
     void contextualMenu(const QPoint &);
@@ -70,10 +74,12 @@ private slots:
     void editLabel();
     void copyLabel();
     void copyAmount();
-    void copyTxID();
+	void copyTx();
+	void showBrowser();
 
 signals:
     void doubleClicked(const QModelIndex&);
+	void blockBrowserSignal(QString transactionId);
 
 public slots:
     void chooseDate(int idx);

@@ -1,10 +1,5 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "qvalidatedlineedit.h"
-
-#include "guiconstants.h"
+#include <QStyle>
 
 QValidatedLineEdit::QValidatedLineEdit(QWidget *parent) :
     QLineEdit(parent), valid(true)
@@ -21,11 +16,13 @@ void QValidatedLineEdit::setValid(bool valid)
 
     if(valid)
     {
-        setStyleSheet("");
+        setProperty("error", false);
+        style()->polish(this);
     }
     else
     {
-        setStyleSheet(STYLE_INVALID);
+        setProperty("error", true);
+        style()->polish(this);
     }
     this->valid = valid;
 }
