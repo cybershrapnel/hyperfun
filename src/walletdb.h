@@ -53,18 +53,18 @@ public:
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey)
     {
         nWalletDBUpdated++;
-        return Write(std::make_pair(std::string("key"), vchPubKey), vchPrivKey, false);
+        return Write(std::make_pair(std::string("key"), vchPubKey.Raw()), vchPrivKey, false);
     }
 
     bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret, bool fEraseUnencryptedKey = true)
     {
         nWalletDBUpdated++;
-        if (!Write(std::make_pair(std::string("ckey"), vchPubKey), vchCryptedSecret, false))
+        if (!Write(std::make_pair(std::string("ckey"), vchPubKey.Raw()), vchCryptedSecret, false))
             return false;
         if (fEraseUnencryptedKey)
         {
-            Erase(std::make_pair(std::string("key"), vchPubKey));
-            Erase(std::make_pair(std::string("wkey"), vchPubKey));
+            Erase(std::make_pair(std::string("key"), vchPubKey.Raw()));
+            Erase(std::make_pair(std::string("wkey"), vchPubKey.Raw()));
         }
         return true;
     }
@@ -97,11 +97,99 @@ public:
         nWalletDBUpdated++;
         return Write(std::string("orderposnext"), nOrderPosNext);
     }
-
+	// presstab HyperStake
+	bool WriteStakeSplitThreshold(uint64 nStakeSplitThreshold)
+	{
+		nWalletDBUpdated++;
+		return Write(std::string("stakeSplitThreshold"), nStakeSplitThreshold);
+	}
+	//presstab HyperStake
+	bool WriteMultiSend(std::vector<std::pair<std::string, int> > vMultiSend)
+	{
+		nWalletDBUpdated++;
+		bool ret = true;
+		for(unsigned int i = 0; i < vMultiSend.size(); i++)
+		{
+			std::pair<std::string, int> pMultiSend;
+			pMultiSend = vMultiSend[i];
+			if(!Write(std::make_pair(std::string("multisend"), i), pMultiSend, true))
+				ret = false;
+		}
+		return ret;
+	}
+	//presstab HyperStake
+	bool EraseMultiSend(std::vector<std::pair<std::string, int> > vMultiSend)
+	{
+		nWalletDBUpdated++;
+		bool ret = true;
+		for(unsigned int i = 0; i < vMultiSend.size(); i++)
+		{
+			std::pair<std::string, int> pMultiSend;
+			pMultiSend = vMultiSend[i];
+			if(!Erase(std::make_pair(std::string("multisend"), i)))
+				ret = false;
+		}
+		return ret;
+	}
+	//presstab HyperStake
+	bool WriteMSettings(bool fEnable, int nLastMultiSendHeight)
+	{
+		nWalletDBUpdated++;
+		std::pair<bool, int> pSettings;
+		pSettings.first = fEnable;
+		pSettings.second = nLastMultiSendHeight;
+		return Write(std::string("msettings"), pSettings, true);
+	}
+	bool WriteMCoinStake(bool fMultiSendCoinStake)
+	{
+		nWalletDBUpdated++;
+		return Write(std::string("mcoinstake"), fMultiSendCoinStake, true);
+	}
+	//presstab HyperStake
+	bool WriteMSDisabledAddresses(std::vector<std::string> vDisabledAddresses)
+	{
+		nWalletDBUpdated++;
+		bool ret = true;
+		for(unsigned int i = 0; i < vDisabledAddresses.size(); i++)
+		{
+			if(!Write(std::make_pair(std::string("mdisabled"), i), vDisabledAddresses[i]))
+				ret = false;
+		}
+		return ret;
+	}
+	//presstab HyperStake
+	bool EraseMSDisabledAddresses(std::vector<std::string> vDisabledAddresses)
+	{
+		nWalletDBUpdated++;
+		bool ret = true;
+		for(unsigned int i = 0; i < vDisabledAddresses.size(); i++)
+		{
+			if(!Erase(std::make_pair(std::string("mdisabled"), i)))
+				ret = false;
+		}
+		return ret;
+	}
+	//presstab HyperStake
+	bool WriteHashDrift(unsigned int nHashDrift)
+	{
+		nWalletDBUpdated++;
+		return Write(std::string("hashdrift"), nHashDrift, true);
+	}
+	//presstab HyperStake
+	bool WriteHashInterval(unsigned int nHashInterval)
+	{
+		nWalletDBUpdated++;
+		return Write(std::string("hashinterval"), nHashInterval, true);
+	}
+	bool WriteCombineDust(bool fCombineDust)
+	{
+		nWalletDBUpdated++;
+		return Write(std::string("combinedust"), fCombineDust, true);
+	}
     bool WriteDefaultKey(const CPubKey& vchPubKey)
     {
         nWalletDBUpdated++;
-        return Write(std::string("defaultkey"), vchPubKey);
+        return Write(std::string("defaultkey"), vchPubKey.Raw());
     }
 
     bool ReadPool(int64 nPool, CKeyPool& keypool)

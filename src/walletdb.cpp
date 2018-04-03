@@ -5,7 +5,6 @@
 
 #include "walletdb.h"
 #include "wallet.h"
-#include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 
 using namespace std;
@@ -73,7 +72,7 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
     if (!pcursor)
         throw runtime_error("CWalletDB::ListAccountCreditDebit() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
-    loop
+    while (true)
     {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
@@ -202,13 +201,15 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             uint256 hash;
             ssKey >> hash;
-            CWalletTx wtx;
+            CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-            CValidationState state;
-            if (wtx.CheckTransaction(state) && (wtx.GetHash() == hash) && state.IsValid())
+            if (wtx.CheckTransaction() && (wtx.GetHash() == hash))
                 wtx.BindWallet(pwallet);
             else
+            {
+                pwallet->mapWallet.erase(hash);
                 return false;
+            }
 
             // Undo serialize changes in 31600
             if (31404 <= wtx.fTimeReceivedIsTxTime && wtx.fTimeReceivedIsTxTime <= 31703)
@@ -233,13 +234,12 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             if (wtx.nOrderPos == -1)
                 fAnyUnordered = true;
 
-            pwallet->mapWallet[hash] = wtx;
             //// debug print
             //printf("LoadWallet  %s\n", wtx.GetHash().ToString().c_str());
-            //printf(" %12"PRI64d"  %s  %s  %s\n",
+            //printf(" %12lld  %s  %s  %s\n",
             //    wtx.vout[0].nValue,
-            //    DateTimeStrFormat("%Y-%m-%d %H:%M:%S", wtx.GetBlockTime()).c_str(),
-            //    wtx.hashBlock.ToString().c_str(),
+            //    DateTimeStrFormat("%x %H:%M:%S", wtx.GetBlockTime()).c_str(),
+            //    wtx.hashBlock.ToString().substr(0,20).c_str(),
             //    wtx.mapValue["message"].c_str());
         }
         else if (strType == "acentry")
@@ -261,33 +261,52 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         }
         else if (strType == "key" || strType == "wkey")
         {
-            CPubKey vchPubKey;
+            vector<unsigned char> vchPubKey;
             ssKey >> vchPubKey;
-            if (!vchPubKey.IsValid())
-            {
-                strErr = "Error reading wallet database: CPubKey corrupt";
-                return false;
-            }
             CKey key;
-            CPrivKey pkey;
             if (strType == "key")
+            {
+                CPrivKey pkey;
                 ssValue >> pkey;
-            else {
+                key.SetPubKey(vchPubKey);
+                if (!key.SetPrivKey(pkey))
+                {
+                    strErr = "Error reading wallet database: CPrivKey corrupt";
+                    return false;
+                }
+                if (key.GetPubKey() != vchPubKey)
+                {
+                    strErr = "Error reading wallet database: CPrivKey pubkey inconsistency";
+                    return false;
+                }
+                if (!key.IsValid())
+                {
+                    strErr = "Error reading wallet database: invalid CPrivKey";
+                    return false;
+                }
+            }
+            else
+            {
                 CWalletKey wkey;
                 ssValue >> wkey;
-                pkey = wkey.vchPrivKey;
+                key.SetPubKey(vchPubKey);
+                if (!key.SetPrivKey(wkey.vchPrivKey))
+                {
+                    strErr = "Error reading wallet database: CPrivKey corrupt";
+                    return false;
+                }
+                if (key.GetPubKey() != vchPubKey)
+                {
+                    strErr = "Error reading wallet database: CWalletKey pubkey inconsistency";
+                    return false;
+                }
+                if (!key.IsValid())
+                {
+                    strErr = "Error reading wallet database: invalid CWalletKey";
+                    return false;
+                }
             }
-            if (!key.SetPrivKey(pkey, vchPubKey.IsCompressed()))
-            {
-                strErr = "Error reading wallet database: CPrivKey corrupt";
-                return false;
-            }
-            if (key.GetPubKey() != vchPubKey)
-            {
-                strErr = "Error reading wallet database: CPrivKey pubkey inconsistency";
-                return false;
-            }
-            if (!pwallet->LoadKey(key, vchPubKey))
+            if (!pwallet->LoadKey(key))
             {
                 strErr = "Error reading wallet database: LoadKey failed";
                 return false;
@@ -353,6 +372,58 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         {
             ssValue >> pwallet->nOrderPosNext;
         }
+		else if (strType == "stakeSplitThreshold") //presstab HyperStake
+		{
+            ssValue >> pwallet->nStakeSplitThreshold;
+		}
+		else if (strType == "multisend") //presstab HyperStake
+		{
+			unsigned int i;
+			ssKey >> i;
+			std::pair<std::string, int> pMultiSend;
+			ssValue >> pMultiSend;
+			if(CBitcoinAddress(pMultiSend.first).IsValid())
+			{
+				pwallet->vMultiSend.push_back(pMultiSend);
+			}
+		}
+		else if(strType == "msettings")//presstab HyperStake
+		{
+		   std::pair<bool, int> pSettings;
+		   ssValue >> pSettings;
+		   pwallet->fMultiSend = pSettings.first;
+		   pwallet->nLastMultiSendHeight = pSettings.second;
+		}
+		else if (strType == "mcoinstake")
+		{
+			bool fMultiSendCoinStake;
+			ssValue >> fMultiSendCoinStake;
+			pwallet->fMultiSendCoinStake = fMultiSendCoinStake;
+		}
+		else if(strType == "mdisabled")//presstab HyperStake
+		{
+		   std::string strDisabledAddress;
+		   ssValue >> strDisabledAddress;
+		   pwallet->vDisabledAddresses.push_back(strDisabledAddress);
+		}
+		else if(strType == "hashdrift")//presstab HyperStake
+		{
+		   unsigned int nHashDrift;
+		   ssValue >> nHashDrift;
+		   pwallet->nHashDrift = nHashDrift;
+		}
+		else if(strType == "hashinterval")//presstab HyperStake
+		{
+		   unsigned int nHashInterval;
+		   ssValue >> nHashInterval;
+		   pwallet->nHashInterval = nHashInterval;
+		}
+		else if(strType == "combinedust")//presstab HyperStake
+		{
+		   bool fCombineDust;
+		   ssValue >> fCombineDust;
+		   pwallet->fCombineDust = fCombineDust;
+		}
     } catch (...)
     {
         return false;
@@ -394,7 +465,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             return DB_CORRUPT;
         }
 
-        loop
+        while (true)
         {
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
@@ -431,10 +502,8 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
         }
         pcursor->close();
     }
-    catch (boost::thread_interrupted) {
-        throw;
-    }
-    catch (...) {
+    catch (...)
+    {
         result = DB_CORRUPT;
     }
 
@@ -464,11 +533,12 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     return result;
 }
 
-void ThreadFlushWalletDB(const string& strFile)
+void ThreadFlushWalletDB(void* parg)
 {
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("bitcoin-wallet");
 
+    const string& strFile = ((const string*)parg)[0];
     static bool fOneThread;
     if (fOneThread)
         return;
@@ -479,9 +549,9 @@ void ThreadFlushWalletDB(const string& strFile)
     unsigned int nLastSeen = nWalletDBUpdated;
     unsigned int nLastFlushed = nWalletDBUpdated;
     int64 nLastWalletUpdate = GetTime();
-    while (true)
+    while (!fShutdown)
     {
-        MilliSleep(500);
+        Sleep(500);
 
         if (nLastSeen != nWalletDBUpdated)
         {
@@ -503,9 +573,8 @@ void ThreadFlushWalletDB(const string& strFile)
                     mi++;
                 }
 
-                if (nRefCount == 0)
+                if (nRefCount == 0 && !fShutdown)
                 {
-                    boost::this_thread::interruption_point();
                     map<string, int>::iterator mi = bitdb.mapFileUseCount.find(strFile);
                     if (mi != bitdb.mapFileUseCount.end())
                     {
@@ -518,7 +587,7 @@ void ThreadFlushWalletDB(const string& strFile)
                         bitdb.CheckpointLSN(strFile);
 
                         bitdb.mapFileUseCount.erase(mi++);
-                        printf("Flushed wallet.dat %"PRI64d"ms\n", GetTimeMillis() - nStart);
+                        printf("Flushed wallet.dat %lldms\n", GetTimeMillis() - nStart);
                     }
                 }
             }
@@ -530,7 +599,7 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
 {
     if (!wallet.fFileBacked)
         return false;
-    while (true)
+    while (!fShutdown)
     {
         {
             LOCK(bitdb.cs_db);
@@ -561,7 +630,7 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
                 }
             }
         }
-        MilliSleep(100);
+        Sleep(100);
     }
     return false;
 }
@@ -579,7 +648,7 @@ bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
     // Set -rescan so any missing transactions will be
     // found.
     int64 now = GetTime();
-    std::string newFilename = strprintf("wallet.%"PRI64d".bak", now);
+    std::string newFilename = strprintf("wallet.%lld.bak", now);
 
     int result = dbenv.dbenv.dbrename(NULL, filename.c_str(), NULL,
                                       newFilename.c_str(), DB_AUTO_COMMIT);
@@ -598,15 +667,15 @@ bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
         printf("Salvage(aggressive) found no records in %s.\n", newFilename.c_str());
         return false;
     }
-    printf("Salvage(aggressive) found %"PRIszu" records\n", salvagedData.size());
+    printf("Salvage(aggressive) found %lu records\n", salvagedData.size());
 
     bool fSuccess = allOK;
     Db* pdbCopy = new Db(&dbenv.dbenv, 0);
-    int ret = pdbCopy->open(NULL,               // Txn pointer
+    int ret = pdbCopy->open(NULL,                 // Txn pointer
                             filename.c_str(),   // Filename
-                            "main",             // Logical db name
-                            DB_BTREE,           // Database type
-                            DB_CREATE,          // Flags
+                            "main",    // Logical db name
+                            DB_BTREE,  // Database type
+                            DB_CREATE,    // Flags
                             0);
     if (ret > 0)
     {
