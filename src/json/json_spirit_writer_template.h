@@ -29,7 +29,7 @@ namespace json_spirit
     String_type non_printable_to_string( unsigned int c )
     {
         // Silence the warning: typedef ‘Char_type’ locally defined but not used [-Wunused-local-typedefs]
-        // typedef typename String_type::value_type Char_type;
+		//typedef typename String_type::value_type Char_type;
 
         String_type result( 6, '\\' );
 
